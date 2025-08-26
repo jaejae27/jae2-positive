@@ -309,11 +309,11 @@ ${name} 학생의 단점 목록:
 - ${filledShortcomings.join('\n- ')}
 
 위 목록에 있는 단점들을 순서대로, 하나씩 긍정적인 강점으로 바꾸고, 그 이유와 성장 조언을 포함해서 JSON 형식으로 답변해줘.
-그리고 발견된 모든 강점들을 종합해서 ${name} 학생을 설명하는 요약 문장(strength_summary) 하나를 만들어줘.
+그리고 발견된 모든 강점들을 종합해서 ${name} 학생을 설명하는 요약(strength_summary) 하나를 만들어줘.
 
 - 'explanation'은 ${name}에게 직접 말해주는 것처럼, 아주 다정하고 명확하게 작성해줘. 왜 그 단점이 사실은 멋진 강점이 될 수 있는지 충분히 설명해주고, ${name} 학생을 진심으로 응원하는 마음이 느껴지도록 길게 써줘. 말투는 '~야', '~하는 거야', '~해' 같이 친근하고 힘을 주는 말투를 사용해줘. '~하단다' 또는 '~해주렴' 같은 선생님 말투는 절대 사용하지 마.
 - 'growth_tip'은 '새로운 친구에게 질문 건네보기' 처럼, 구체적이고 바로 실천할 수 있는 짧은 미션 형태로 작성해줘.
-- 'strength_summary'는 '너는 아주 신중하고 생각이 깊어.' 처럼, 발견된 모든 강점들을 종합하여 ${name}이 어떤 사람인지 한 문장으로 요약해서 설명해줘.`;
+- 'strength_summary'는 '주변을 깊이 관찰하고 신중하게 생각하는 사람'처럼, 발견된 모든 강점들을 종합하여 ${name} 학생을 설명하는 명사구 형태로 작성해줘. '${name}은/는' 이나 '너는' 같은 주어는 절대 포함하지 마.`;
 
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
@@ -325,7 +325,7 @@ ${name} 학생의 단점 목록:
             properties: {
               strength_summary: {
                   type: Type.STRING,
-                  description: `${name}의 발견된 강점들을 종합하여 설명하는 한 문장의 요약. '너는 아주 신중하고 생각이 깊어.' 와 같은 형식.`,
+                  description: `${name}의 발견된 강점들을 종합하여 설명하는 명사구. '주변을 깊이 관찰하고 신중하게 생각하는 사람'과 같은 형식. 주어를 포함하지 않음.`,
               },
               results: {
                 type: Type.ARRAY,
@@ -448,7 +448,7 @@ const ExplanationPage = ({ name, explanations, shortcomings, currentExplanationI
 
     return (
         <div className="page">
-            <h2>✨ 새롭게 발견한 나의 강점</h2>
+            <h2>✨ 새롭게 발견한 나의 강점 💖</h2>
             <p>"{shortcomings[currentExplanationIndex]}"라고 생각했던 점은 사실...</p>
             <div className="explanation-box">
                 <p className="explanation-text">{explanations[currentExplanationIndex]}</p>
@@ -550,7 +550,7 @@ const FinalCardPage = ({ studentId, name, template, strengthSummary, friendName,
                 </div>
                 <div className="card-content">
                     <div className="highlight-box" style={{ backgroundColor: 'rgba(255,255,255,0.5)' }}>
-                        <h4>✨ {name}님의 강점 ✨</h4>
+                        <h4>✨ 짜잔! {name}님의 새로운 강점 에너지 ✨</h4>
                         <p className="strength-summary">{strengthSummary}</p>
                     </div>
 
