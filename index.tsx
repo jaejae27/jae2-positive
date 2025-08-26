@@ -27,7 +27,18 @@ const App = () => {
   const progress = (page / totalPages) * 100;
 
   const handleNext = () => setPage(page + 1);
-  const handleBack = () => setPage(page - 1);
+  const handleBack = () => {
+    // When going back from explanation page, clear the results
+    if (page === 4) {
+        setAffirmations([]);
+        setExplanations([]);
+        setGrowthTips([]);
+        setStrengthSummary("");
+        setCurrentExplanationIndex(0);
+        setError("");
+    }
+    setPage(page - 1);
+  };
 
   const validateAndProceed = (validationFn: () => boolean) => {
     setError("");
@@ -88,15 +99,7 @@ const App = () => {
             shortcomings={shortcomings}
             setShortcomings={setShortcomings}
             name={name}
-            setAffirmations={setAffirmations}
-            setExplanations={setExplanations}
-            setGrowthTips={setGrowthTips}
-            setStrengthSummary={setStrengthSummary}
-            setLoading={setLoading}
-            setError={setError}
             onNext={handleNext}
-            loading={loading}
-            error={error}
             onBack={handleBack}
           />
         );
@@ -110,6 +113,14 @@ const App = () => {
             setCurrentExplanationIndex={setCurrentExplanationIndex}
             onNext={handleNext}
             onBack={handleBack}
+            setAffirmations={setAffirmations}
+            setExplanations={setExplanations}
+            setGrowthTips={setGrowthTips}
+            setStrengthSummary={setStrengthSummary}
+            loading={loading}
+            setLoading={setLoading}
+            error={error}
+            setError={setError}
           />
         );
       case 5:
@@ -263,17 +274,11 @@ const ShortcomingsPage = ({
   shortcomings,
   setShortcomings,
   name,
-  setAffirmations,
-  setExplanations,
-  setGrowthTips,
-  setStrengthSummary,
-  setLoading,
-  setError,
   onNext,
-  loading,
-  error,
   onBack,
 }) => {
+  const [localError, setLocalError] = useState("");
+
   const handleShortcomingChange = (index, value) => {
     const newShortcomings = [...shortcomings];
     newShortcomings[index] = value;
@@ -293,73 +298,14 @@ const ShortcomingsPage = ({
     }
   };
 
-  const handleGenerate = async () => {
-    setError("");
+  const handleSubmit = () => {
+    setLocalError("");
     const filledShortcomings = shortcomings.filter(s => s.trim() !== "");
     if (filledShortcomings.length === 0) {
-      setError("단점을 하나 이상 입력해주세요.");
+      setLocalError("단점을 하나 이상 입력해주세요.");
       return;
     }
-
-    setLoading(true);
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, filledShortcomings }),
-      });
-
-      if (!response.ok) {
-        const responseText = await response.text();
-        let errorMessage = responseText;
-        try {
-          const errorData = JSON.parse(responseText);
-          if (errorData && errorData.error) {
-            errorMessage = errorData.error;
-             if (errorData.details) {
-                errorMessage += ` (Details: ${errorData.details})`;
-            }
-          }
-        } catch (parseError) {
-          // Not JSON, use raw text.
-        }
-        throw new Error(errorMessage);
-      }
-      
-      // Handle streaming response
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let fullResponse = "";
-
-      while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-              break;
-          }
-          fullResponse += decoder.decode(value, { stream: true });
-      }
-
-      // Now that the stream is complete, parse the full JSON string
-      const data = JSON.parse(fullResponse);
-      
-      if (!data.results || data.results.length === 0) {
-        throw new Error("결과가 비어있습니다. 다시 시도해주세요.");
-      }
-      
-      setAffirmations(data.results.map(r => r.affirmation));
-      setExplanations(data.results.map(r => r.explanation));
-      setGrowthTips(data.results.map(r => r.growth_tip));
-      setStrengthSummary(data.strength_summary);
-      onNext();
-
-    } catch (e) {
-      console.error("Error generating affirmations:", e);
-      setError(`에너지 생성 중 오류가 발생했습니다: ${e.message}`);
-    } finally {
-      setLoading(false);
-    }
+    onNext();
   };
 
   return (
@@ -399,19 +345,12 @@ const ShortcomingsPage = ({
         </button>
       )}
 
-      {error && (
-        <div className="error-container">
-            <p className="error-message">{error}</p>
-            <button className="btn-copy-error" onClick={() => navigator.clipboard.writeText(error)}>
-                오류 복사
-            </button>
-        </div>
-      )}
+      {localError && <p className="error-message">{localError}</p>}
       
       <div className="button-group">
           <button className="btn btn-secondary" onClick={onBack}>이전</button>
-          <button className="btn" onClick={handleGenerate} disabled={loading || shortcomings.every(s => s.trim() === '')}>
-              {loading ? '에너지 생성중...' : '강점 분석하기'}
+          <button className="btn" onClick={handleSubmit} disabled={shortcomings.every(s => s.trim() === '')}>
+              강점 분석하기
           </button>
       </div>
     </div>
@@ -426,37 +365,145 @@ const ExplanationPage = ({
     setCurrentExplanationIndex,
     onNext,
     onBack,
+    setAffirmations,
+    setExplanations,
+    setGrowthTips,
+    setStrengthSummary,
+    loading,
+    setLoading,
+    error,
+    setError,
 }) => {
-  const handleNextExplanation = () => {
-    if (currentExplanationIndex < explanations.length - 1) {
-      setCurrentExplanationIndex(currentExplanationIndex + 1);
-    } else {
-      onNext();
+    
+    useEffect(() => {
+        // 데이터가 이미 있거나 로딩 중이면 다시 호출하지 않음
+        if (explanations.length > 0 || loading) {
+            return;
+        }
+
+        const generateData = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                const filledShortcomings = shortcomings.filter(s => s.trim() !== "");
+                if (filledShortcomings.length === 0) {
+                    setError("분석할 단점이 없습니다. 이전으로 돌아가 단점을 입력해주세요.");
+                    setLoading(false);
+                    return;
+                }
+
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, filledShortcomings }),
+                });
+
+                if (!response.ok) {
+                    const responseText = await response.text();
+                    let errorMessage = responseText;
+                    try {
+                        const errorData = JSON.parse(responseText);
+                        if (errorData && errorData.error) {
+                            errorMessage = errorData.error;
+                            if (errorData.details) {
+                                errorMessage += ` (Details: ${errorData.details})`;
+                            }
+                        }
+                    } catch (parseError) { /* Not JSON, use raw text. */ }
+                    throw new Error(errorMessage);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let fullResponse = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    fullResponse += decoder.decode(value, { stream: true });
+                }
+
+                const data = JSON.parse(fullResponse);
+                if (!data.results || data.results.length === 0) {
+                    throw new Error("결과가 비어있습니다. 다시 시도해주세요.");
+                }
+
+                setAffirmations(data.results.map(r => r.affirmation));
+                setExplanations(data.results.map(r => r.explanation));
+                setGrowthTips(data.results.map(r => r.growth_tip));
+                setStrengthSummary(data.strength_summary);
+
+            } catch (e) {
+                console.error("Error generating affirmations:", e);
+                setError(`에너지 생성 중 오류가 발생했습니다: ${e.message}`);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        generateData();
+    }, [explanations, shortcomings, name, loading, setError, setLoading, setAffirmations, setExplanations, setGrowthTips, setStrengthSummary]);
+
+    if (loading) {
+        return (
+            <div className="page" style={{ textAlign: 'center', gap: '15px' }}>
+                <h2>잠시만 기다려주세요...</h2>
+                <p><strong>{name}</strong>님의 숨겨진 강점을 분석하고 있어요!</p>
+                <p>AI가 열심히 생각 중입니다 🤖</p>
+            </div>
+        );
     }
-  };
 
-  return (
-    <div className="page">
-      <h2>🔬 {name}님의 강점 분석 결과</h2>
-      <p>입력한 단점이 어떻게 멋진 강점이 되는지 확인해보세요.</p>
-      
-      <div className="explanation-box">
-          <h4>'{shortcomings[currentExplanationIndex]}'의 재해석</h4>
-          <p className="explanation-text">
-            {explanations[currentExplanationIndex]}
-          </p>
-      </div>
+    if (error) {
+        return (
+            <div className="page">
+                <h2 style={{ color: '#e53e3e' }}>앗! 분석 중 오류가 발생했어요</h2>
+                <div className="error-container">
+                    <p className="error-message">{error}</p>
+                    <button className="btn-copy-error" onClick={() => navigator.clipboard.writeText(error)}>
+                        오류 복사
+                    </button>
+                </div>
+                <button className="btn btn-secondary" onClick={onBack} style={{width: '100%'}}>이전으로 돌아가기</button>
+            </div>
+        );
+    }
 
-      <p>{currentExplanationIndex + 1} / {explanations.length}</p>
+    if (explanations.length === 0) {
+        return (
+            <div className="page" style={{ textAlign: 'center' }}>
+                <p>분석 결과를 불러오는 중입니다...</p>
+            </div>
+        );
+    }
 
-      <div className="button-group">
-          <button className="btn btn-secondary" onClick={onBack}>이전</button>
-          <button className="btn" onClick={handleNextExplanation}>
-            {currentExplanationIndex < explanations.length - 1 ? '다음 분석 보기' : '분석 완료!'}
-          </button>
-      </div>
-    </div>
-  );
+    const handleNextExplanation = () => {
+        if (currentExplanationIndex < explanations.length - 1) {
+            setCurrentExplanationIndex(currentExplanationIndex + 1);
+        } else {
+            onNext();
+        }
+    };
+
+    return (
+        <div className="page">
+            <h2>🔬 {name}님의 강점 분석 결과</h2>
+            <p>입력한 단점이 어떻게 멋진 강점이 되는지 확인해보세요.</p>
+            <div className="explanation-box">
+                <h4>'{shortcomings[currentExplanationIndex]}'의 재해석</h4>
+                <p className="explanation-text">
+                    {explanations[currentExplanationIndex]}
+                </p>
+            </div>
+            <p>{currentExplanationIndex + 1} / {explanations.length}</p>
+            <div className="button-group">
+                <button className="btn btn-secondary" onClick={onBack}>이전</button>
+                <button className="btn" onClick={handleNextExplanation}>
+                    {currentExplanationIndex < explanations.length - 1 ? '다음 분석 보기' : '분석 완료!'}
+                </button>
+            </div>
+        </div>
+    );
 };
 
 const FriendMessagePage = ({ name, friendName, setFriendName, friendMessage, setFriendMessage, onNext, error, onBack }) => (
