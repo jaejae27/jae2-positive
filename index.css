@@ -187,10 +187,41 @@ textarea {
     flex: 1;
 }
 
+.error-container {
+  background-color: #fff0f0;
+  border: 1px solid #ffcccc;
+  border-left: 4px solid #e53e3e;
+  padding: 15px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
 .error-message {
   color: #e53e3e;
-  text-align: center;
+  text-align: left;
   font-weight: bold;
+  flex-grow: 1;
+  margin: 0;
+}
+
+.btn-copy-error {
+  background-color: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.2s;
+}
+
+.btn-copy-error:hover {
+  background-color: #c53030;
 }
 
 .template-container, .color-picker-container {

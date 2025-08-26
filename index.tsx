@@ -399,7 +399,14 @@ const ShortcomingsPage = ({
         </button>
       )}
 
-      {error && <p className="error-message">{error}</p>}
+      {error && (
+        <div className="error-container">
+            <p className="error-message">{error}</p>
+            <button className="btn-copy-error" onClick={() => navigator.clipboard.writeText(error)}>
+                오류 복사
+            </button>
+        </div>
+      )}
       
       <div className="button-group">
           <button className="btn btn-secondary" onClick={onBack}>이전</button>
