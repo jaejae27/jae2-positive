@@ -311,12 +311,29 @@ const ShortcomingsPage = ({
         body: JSON.stringify({ name, filledShortcomings }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        // Use the error message from the server's JSON response if available
-        throw new Error(data.error || `서버에서 오류가 발생했습니다 (Status: ${response.status})`);
+        let errorMessage = `서버 오류 (Status: ${response.status})`;
+        try {
+          // Attempt to parse a JSON error body first
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // If parsing JSON fails, try to get raw text
+          try {
+            const errorText = await response.text();
+            if (errorText) {
+              errorMessage = errorText;
+            }
+          } catch (textErr) {
+            // Ignore if we can't get text
+          }
+        }
+        throw new Error(errorMessage);
       }
+      
+      const data = await response.json();
       
       if (!data.results || data.results.length === 0) {
         throw new Error("결과가 비어있습니다. 다시 시도해주세요.");
