@@ -253,6 +253,21 @@ input[type="color"]::-webkit-color-swatch {
     align-items: center;
 }
 
+.shortcoming-item input {
+    flex-grow: 1;
+}
+
+.btn-remove {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #ff8a8a;
+    cursor: pointer;
+    font-weight: bold;
+    padding: 0 5px;
+    line-height: 1;
+}
+
 .tips {
     background-color: #f7f9fc;
     border-left: 4px solid #84a6ff;
