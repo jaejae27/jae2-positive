@@ -311,14 +311,11 @@ const ShortcomingsPage = ({
         body: JSON.stringify({ name, filledShortcomings }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
       const data = await response.json();
 
-      if (data.error) {
-          throw new Error(data.error);
+      if (!response.ok) {
+        // Use the error message from the server's JSON response if available
+        throw new Error(data.error || `서버에서 오류가 발생했습니다 (Status: ${response.status})`);
       }
       
       if (!data.results || data.results.length === 0) {
