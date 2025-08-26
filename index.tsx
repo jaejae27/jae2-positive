@@ -12,6 +12,7 @@ const App = () => {
   const [affirmations, setAffirmations] = useState<string[]>([]);
   const [explanations, setExplanations] = useState<string[]>([]);
   const [growthTips, setGrowthTips] = useState<string[]>([]);
+  const [strengthSummary, setStrengthSummary] = useState("");
   const [currentExplanationIndex, setCurrentExplanationIndex] = useState(0);
   const [friendName, setFriendName] = useState("");
   const [friendMessage, setFriendMessage] = useState("");
@@ -43,6 +44,7 @@ const App = () => {
       setAffirmations([]);
       setExplanations([]);
       setGrowthTips([]);
+      setStrengthSummary("");
       setCurrentExplanationIndex(0);
       setFriendName("");
       setFriendMessage("");
@@ -89,6 +91,7 @@ const App = () => {
             setAffirmations={setAffirmations}
             setExplanations={setExplanations}
             setGrowthTips={setGrowthTips}
+            setStrengthSummary={setStrengthSummary}
             setLoading={setLoading}
             setError={setError}
             onNext={handleNext}
@@ -143,10 +146,9 @@ const App = () => {
             studentId={studentId}
             name={name}
             template={template}
-            affirmations={affirmations}
+            strengthSummary={strengthSummary}
             friendName={friendName}
             friendMessage={friendMessage}
-            shortcomings={shortcomings}
             growthTips={growthTips}
             onRestart={resetApp}
             onBack={handleBack}
@@ -262,6 +264,7 @@ const ShortcomingsPage = ({
   setAffirmations,
   setExplanations,
   setGrowthTips,
+  setStrengthSummary,
   setLoading,
   setError,
   onNext,
@@ -299,40 +302,54 @@ const ShortcomingsPage = ({
     setLoading(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `너는 초등학생의 장점을 찾아주는 따뜻한 상담가야. 다음은 ${name} 학생이 스스로 생각하는 단점들이야: ${filledShortcomings.join(", ")}. 각 단점에 대해, 그 안에 숨겨진 멋진 강점을 찾아서 긍정적으로 재해석해줘.`;
+      const prompt = `너는 초등학생 ${name}의 든든하고 지혜로운 멘토야. ${name} 학생이 자신의 단점에 대해 솔직하게 이야기해줬어.
+
+${name} 학생의 단점 목록:
+- ${filledShortcomings.join('\n- ')}
+
+위 목록에 있는 단점들을 순서대로, 하나씩 긍정적인 강점으로 바꾸고, 그 이유와 성장 조언을 포함해서 JSON 형식으로 답변해줘.
+그리고 발견된 모든 강점들을 종합해서 ${name} 학생을 설명하는 요약 문장(strength_summary) 하나를 만들어줘.
+
+- 'explanation'은 ${name}에게 직접 말해주는 것처럼, 아주 다정하고 명확하게 작성해줘. 왜 그 단점이 사실은 멋진 강점이 될 수 있는지 충분히 설명해주고, ${name} 학생을 진심으로 응원하는 마음이 느껴지도록 길게 써줘. 말투는 '~야', '~하는 거야', '~해' 같이 친근하고 힘을 주는 말투를 사용해줘. '~하단다' 또는 '~해주렴' 같은 선생님 말투는 절대 사용하지 마.
+- 'growth_tip'은 '새로운 친구에게 질문 건네보기' 처럼, 구체적이고 바로 실천할 수 있는 짧은 미션 형태로 작성해줘.
+- 'strength_summary'는 '너는 아주 신중하고 생각이 깊어.' 처럼, 발견된 모든 강점들을 종합하여 ${name}이 어떤 사람인지 한 문장으로 요약해서 설명해줘.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gem-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
+              strength_summary: {
+                  type: Type.STRING,
+                  description: `${name}의 발견된 강점들을 종합하여 설명하는 한 문장의 요약. '너는 아주 신중하고 생각이 깊어.' 와 같은 형식.`,
+              },
               results: {
                 type: Type.ARRAY,
-                description: "각 단점에 대한 긍정적 재해석 결과 목록",
+                description: "각 단점에 대한 긍정적 재해석 결과 목록. 입력된 단점의 순서와 동일해야 합니다.",
                 items: {
                   type: Type.OBJECT,
                   properties: {
                     affirmation: {
                       type: Type.STRING,
-                      description: "단점을 강점으로 바꾼 짧고 긍정적인 문장 (예: '너는 신중한 거구나!')",
+                      description: "단점을 강점으로 바꾼 짧고 긍정적인 문장 (예: '너는 신중한 거야!')",
                     },
                     explanation: {
                       type: Type.STRING,
-                      description: "왜 그렇게 재해석할 수 있는지에 대한 다정하고 희망적인 설명. 아이에게 말하듯 친근한 말투(~구나, ~인걸, ~거야)로 작성.",
+                      description: "멘토가 학생에게 말해주는 것처럼, 왜 단점이 강점이 될 수 있는지 다정하고 명확하게 설명하는 글. '~야', '~해' 같은 친근하고 힘을 주는 말투로 길게 작성.",
                     },
                     growth_tip: {
                       type: Type.STRING,
-                      description: "발견한 강점을 더 발전시키기 위한 구체적이고 실천 가능한 조언 한 가지.",
+                      description: "발견한 강점을 더 발전시키기 위한 구체적이고 실천 가능한 미션 한 가지. 'OO하기' 또는 'OO해보기' 처럼 매우 짧고 명료한 행동 중심으로 작성해줘.",
                     },
                   },
                   required: ["affirmation", "explanation", "growth_tip"],
                 },
               },
             },
-            required: ["results"],
+            required: ["strength_summary", "results"],
           },
         },
       });
@@ -341,6 +358,7 @@ const ShortcomingsPage = ({
 
       // Validate the response from the AI to prevent crashing on the next page
       if (
+        !jsonResponse.strength_summary ||
         !jsonResponse.results ||
         !Array.isArray(jsonResponse.results) ||
         jsonResponse.results.length === 0 ||
@@ -361,6 +379,7 @@ const ShortcomingsPage = ({
       setAffirmations(affirmations);
       setExplanations(explanations);
       setGrowthTips(growthTips);
+      setStrengthSummary(jsonResponse.strength_summary);
       onNext();
 
     } catch (e) {
@@ -431,8 +450,7 @@ const ExplanationPage = ({ name, explanations, shortcomings, currentExplanationI
             <h2>✨ 새롭게 발견한 나의 강점</h2>
             <p>"{shortcomings[currentExplanationIndex]}"라고 생각했던 점은 사실...</p>
             <div className="explanation-box">
-                <p>{name}님 안에는 이런 멋진 힘이 숨어있었군요!</p>
-                <blockquote>{explanations[currentExplanationIndex]}</blockquote>
+                <p className="explanation-text">{explanations[currentExplanationIndex]}</p>
             </div>
             <p>{currentExplanationIndex + 1} / {explanations.length}</p>
             <div className="button-group">
@@ -481,7 +499,7 @@ const FriendMessagePage = ({ name, friendName, setFriendName, friendMessage, set
     );
 };
 
-const FinalCardPage = ({ studentId, name, template, affirmations, friendName, friendMessage, shortcomings, growthTips, onRestart, onBack }) => {
+const FinalCardPage = ({ studentId, name, template, strengthSummary, friendName, friendMessage, growthTips, onRestart, onBack }) => {
     const cardRef = useRef(null);
 
     const downloadCard = async () => {
@@ -498,6 +516,9 @@ const FinalCardPage = ({ studentId, name, template, affirmations, friendName, fr
         cardElement.style.overflowY = 'visible';
         
         try {
+            // Add a small delay to ensure the browser has re-rendered the element at its full height
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             const canvas = await html2canvas(cardElement, {
                 useCORS: true,
                 scale: 2,
@@ -528,12 +549,8 @@ const FinalCardPage = ({ studentId, name, template, affirmations, friendName, fr
                 </div>
                 <div className="card-content">
                     <div className="highlight-box" style={{ backgroundColor: 'rgba(255,255,255,0.5)' }}>
-                        <h4>새롭게 발견한 나의 강점</h4>
-                        <ul>
-                            {affirmations.map((aff, index) => (
-                                <li key={index}><strong>{shortcomings[index]}</strong> → {aff}</li>
-                            ))}
-                        </ul>
+                        <h4>✨ {name}님의 강점 ✨</h4>
+                        <p className="strength-summary">{strengthSummary}</p>
                     </div>
 
                     <div className="highlight-box" style={{ backgroundColor: 'rgba(255,255,255,0.5)' }}>
@@ -548,6 +565,7 @@ const FinalCardPage = ({ studentId, name, template, affirmations, friendName, fr
                                 <div key={index} className="mission-item">
                                     <input type="checkbox" id={`mission-${index}`} />
                                     <label htmlFor={`mission-${index}`}>{tip}</label>
+
                                 </div>
                             ))}
                         </div>

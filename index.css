@@ -294,13 +294,16 @@ input[type="color"]::-webkit-color-swatch {
     border: 1px solid #e0e0e0;
 }
 
-.explanation-box blockquote {
+.explanation-box .explanation-text {
     background: #fff;
-    padding: 10px;
+    padding: 15px;
     border-radius: 8px;
-    font-style: italic;
-    margin-top: 15px;
-    border-left: 3px solid #ff8a8a;
+    margin: 0;
+    border-left: 4px solid #ff8a8a;
+    text-align: left;
+    white-space: pre-wrap;
+    line-height: 1.7;
+    color: #444;
 }
 
 .card-container {
@@ -309,9 +312,9 @@ input[type="color"]::-webkit-color-swatch {
     box-shadow: 0 0 0 10px white, 0 0 0 12px #ddd;
     text-align: center;
     max-width: 400px;
-    margin: 20px auto;
+    margin: 10px auto;
     position: relative;
-    max-height: 75vh;
+    max-height: 65vh;
     overflow-y: auto;
 }
 
@@ -367,7 +370,7 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 .highlight-box p {
-    word-break: break-all;
+    word-break: break-word;
 }
 
 .highlight-box ul {
@@ -380,6 +383,13 @@ input[type="color"]::-webkit-color-swatch {
     margin-bottom: 5px;
 }
 
+.strength-summary {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    padding: 5px 0;
+    font-weight: bold;
+    color: #444;
+}
 
 .card-footer {
     margin-top: 20px;
