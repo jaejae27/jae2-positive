@@ -66,7 +66,6 @@ Based on these, generate a strength summary, and for each shortcoming, provide a
             config: {
                 responseMimeType: "application/json",
                 responseSchema: responseSchema,
-                thinkingConfig: { thinkingBudget: 0 },
             },
         });
         

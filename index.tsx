@@ -53,6 +53,75 @@ const App = () => {
       setError("");
   }
 
+  const generateAnalysis = async (currentShortcomings: string[]) => {
+    setError("");
+    const filledShortcomings = currentShortcomings.filter(s => s.trim() !== "");
+    if (filledShortcomings.length === 0) {
+      setError("단점을 하나 이상 입력해주세요.");
+      return;
+    }
+
+    setLoading(true);
+    setPage(4); // Navigate immediately
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, filledShortcomings }),
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        let errorMessage = responseText;
+        try {
+          const errorData = JSON.parse(responseText);
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+             if (errorData.details) {
+                errorMessage += ` (Details: ${errorData.details})`;
+            }
+          }
+        } catch (parseError) {
+          // Not JSON, use raw text.
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let fullResponse = "";
+
+      while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+              break;
+          }
+          fullResponse += decoder.decode(value, { stream: true });
+      }
+
+      const data = JSON.parse(fullResponse);
+      
+      if (!data.results || data.results.length === 0) {
+        throw new Error("결과가 비어있습니다. 다시 시도해주세요.");
+      }
+      
+      setAffirmations(data.results.map(r => r.affirmation));
+      setExplanations(data.results.map(r => r.explanation));
+      setGrowthTips(data.results.map(r => r.growth_tip));
+      setStrengthSummary(data.strength_summary);
+
+    } catch (e) {
+      console.error("Error generating affirmations:", e);
+      setError(`에너지 생성 중 오류가 발생했습니다: ${e.message}`);
+      setPage(3); // Go back on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const renderPage = () => {
     switch (page) {
@@ -88,13 +157,7 @@ const App = () => {
             shortcomings={shortcomings}
             setShortcomings={setShortcomings}
             name={name}
-            setAffirmations={setAffirmations}
-            setExplanations={setExplanations}
-            setGrowthTips={setGrowthTips}
-            setStrengthSummary={setStrengthSummary}
-            setLoading={setLoading}
-            setError={setError}
-            onNext={handleNext}
+            onGenerate={generateAnalysis}
             loading={loading}
             error={error}
             onBack={handleBack}
@@ -263,13 +326,7 @@ const ShortcomingsPage = ({
   shortcomings,
   setShortcomings,
   name,
-  setAffirmations,
-  setExplanations,
-  setGrowthTips,
-  setStrengthSummary,
-  setLoading,
-  setError,
-  onNext,
+  onGenerate,
   loading,
   error,
   onBack,
@@ -292,74 +349,9 @@ const ShortcomingsPage = ({
       setShortcomings(newShortcomings);
     }
   };
-
-  const handleGenerate = async () => {
-    setError("");
-    const filledShortcomings = shortcomings.filter(s => s.trim() !== "");
-    if (filledShortcomings.length === 0) {
-      setError("단점을 하나 이상 입력해주세요.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, filledShortcomings }),
-      });
-
-      if (!response.ok) {
-        const responseText = await response.text();
-        let errorMessage = responseText;
-        try {
-          const errorData = JSON.parse(responseText);
-          if (errorData && errorData.error) {
-            errorMessage = errorData.error;
-             if (errorData.details) {
-                errorMessage += ` (Details: ${errorData.details})`;
-            }
-          }
-        } catch (parseError) {
-          // Not JSON, use raw text.
-        }
-        throw new Error(errorMessage);
-      }
-      
-      // Handle streaming response
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let fullResponse = "";
-
-      while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-              break;
-          }
-          fullResponse += decoder.decode(value, { stream: true });
-      }
-
-      // Now that the stream is complete, parse the full JSON string
-      const data = JSON.parse(fullResponse);
-      
-      if (!data.results || data.results.length === 0) {
-        throw new Error("결과가 비어있습니다. 다시 시도해주세요.");
-      }
-      
-      setAffirmations(data.results.map(r => r.affirmation));
-      setExplanations(data.results.map(r => r.explanation));
-      setGrowthTips(data.results.map(r => r.growth_tip));
-      setStrengthSummary(data.strength_summary);
-      onNext();
-
-    } catch (e) {
-      console.error("Error generating affirmations:", e);
-      setError(`에너지 생성 중 오류가 발생했습니다: ${e.message}`);
-    } finally {
-      setLoading(false);
-    }
+  
+  const handleGenerateClick = () => {
+      onGenerate(shortcomings);
   };
 
   return (
@@ -410,8 +402,8 @@ const ShortcomingsPage = ({
       
       <div className="button-group">
           <button className="btn btn-secondary" onClick={onBack}>이전</button>
-          <button className="btn" onClick={handleGenerate} disabled={loading || shortcomings.every(s => s.trim() === '')}>
-              {loading ? '에너지 생성중...' : '강점 분석하기'}
+          <button className="btn" onClick={handleGenerateClick} disabled={loading || shortcomings.every(s => s.trim() === '')}>
+              {loading ? '분석 중...' : '강점 분석하기'}
           </button>
       </div>
     </div>
@@ -427,6 +419,18 @@ const ExplanationPage = ({
     onNext,
     onBack,
 }) => {
+
+  if (explanations.length === 0) {
+    return (
+        <div className="page loading-page">
+            <h2>🔬 {name}님의 강점 분석 중...</h2>
+            <p>잠시만 기다려주세요, 긍정 에너지를 만들고 있어요!</p>
+            <div className="spinner"></div>
+            <p className="loading-tip">TIP: 긍정적인 생각은 두뇌를 더 창의적으로 만든답니다!</p>
+        </div>
+    );
+  }
+
   const handleNextExplanation = () => {
     if (currentExplanationIndex < explanations.length - 1) {
       setCurrentExplanationIndex(currentExplanationIndex + 1);

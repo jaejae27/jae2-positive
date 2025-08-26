@@ -470,3 +470,36 @@ input[type="color"]::-webkit-color-swatch {
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
 }
+
+/* Loading state styles */
+.loading-page {
+    text-align: center;
+    justify-content: center;
+    min-height: 300px; /* Ensure it takes up space */
+}
+
+.spinner {
+  margin: 20px auto;
+  border: 5px solid rgba(0, 0, 0, 0.1);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border-left-color: #84a6ff;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-tip {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: #777;
+    font-style: italic;
+}
