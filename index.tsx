@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
@@ -315,7 +316,7 @@ ${name} 학생의 단점 목록:
 - 'strength_summary'는 '너는 아주 신중하고 생각이 깊어.' 처럼, 발견된 모든 강점들을 종합하여 ${name}이 어떤 사람인지 한 문장으로 요약해서 설명해줘.`;
 
       const response = await ai.models.generateContent({
-        model: "gem-2.5-flash",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
