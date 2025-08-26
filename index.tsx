@@ -312,23 +312,19 @@ const ShortcomingsPage = ({
       });
 
       if (!response.ok) {
-        let errorMessage = `서버 오류 (Status: ${response.status})`;
+        const responseText = await response.text();
+        let errorMessage = responseText;
         try {
-          // Attempt to parse a JSON error body first
-          const errorData = await response.json();
-          if (errorData.error) {
+          // Now, try to parse it as JSON.
+          const errorData = JSON.parse(responseText);
+          if (errorData && errorData.error) {
             errorMessage = errorData.error;
-          }
-        } catch (e) {
-          // If parsing JSON fails, try to get raw text
-          try {
-            const errorText = await response.text();
-            if (errorText) {
-              errorMessage = errorText;
+             if (errorData.details) {
+                errorMessage += ` (Details: ${errorData.details})`;
             }
-          } catch (textErr) {
-            // Ignore if we can't get text
           }
+        } catch (parseError) {
+          // It's not JSON, that's fine. We already have the raw text in errorMessage.
         }
         throw new Error(errorMessage);
       }

@@ -83,7 +83,10 @@ ${name} 학생의 단점 목록:
 
     } catch (error) {
         console.error('Error in serverless function:', error);
-        // Send a generic error message to the client to avoid leaking implementation details
-        res.status(500).json({ error: 'An internal server error occurred.' });
+        // Send a more detailed error message to the client for debugging
+        res.status(500).json({ 
+            error: 'An internal server error occurred on the API route.',
+            details: error.message || String(error)
+        });
     }
 };
