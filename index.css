@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap');
 
 :root {
@@ -47,7 +48,7 @@ body {
 }
 
 .app-title {
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-weight: bold;
   background: linear-gradient(45deg, #ff8a8a, #84a6ff);
   -webkit-background-clip: text;
