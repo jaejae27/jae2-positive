@@ -299,15 +299,7 @@ const ShortcomingsPage = ({
     setLoading(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `${name} 학생의 단점은 다음과 같아: ${filledShortcomings.join(", ")}. 
-      이 단점들을 긍정적인 관점으로 재해석하고, 각각에 대한 따뜻하고 지지적인 설명을 덧붙여줘. 
-      각 단점에 대해 다음과 같은 형식으로 답변해줘.
-
-      1. 긍정적 재해석 (Affirmation): 단점을 강점으로 바꾸는 짧고 긍정적인 문장.
-      2. 설명 (Explanation): 왜 그렇게 재해석할 수 있는지, 그 안에 어떤 잠재력이 숨어있는지에 대한 다정하고 희망적인 설명. 아이에게 말하듯이 친근한 말투로 해줘. "~구나", "~인걸", "~거야" 같은 다양한 어미를 사용해서 자연스럽게 해주고, "~란다", "~단다" 같은 어미는 반복하지 말아줘.
-      3. 성장을 위한 조언 (Growth Tip): 이 강점을 더 발전시키기 위한 구체적이고 실천 가능한 조언 한 가지.
-      
-      결과는 JSON 형식으로 줘.`;
+      const prompt = `너는 초등학생의 장점을 찾아주는 따뜻한 상담가야. 다음은 ${name} 학생이 스스로 생각하는 단점들이야: ${filledShortcomings.join(", ")}. 각 단점에 대해, 그 안에 숨겨진 멋진 강점을 찾아서 긍정적으로 재해석해줘.`;
 
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
@@ -319,12 +311,22 @@ const ShortcomingsPage = ({
             properties: {
               results: {
                 type: Type.ARRAY,
+                description: "각 단점에 대한 긍정적 재해석 결과 목록",
                 items: {
                   type: Type.OBJECT,
                   properties: {
-                    affirmation: { type: Type.STRING },
-                    explanation: { type: Type.STRING },
-                    growth_tip: { type: Type.STRING },
+                    affirmation: {
+                      type: Type.STRING,
+                      description: "단점을 강점으로 바꾼 짧고 긍정적인 문장 (예: '너는 신중한 거구나!')",
+                    },
+                    explanation: {
+                      type: Type.STRING,
+                      description: "왜 그렇게 재해석할 수 있는지에 대한 다정하고 희망적인 설명. 아이에게 말하듯 친근한 말투(~구나, ~인걸, ~거야)로 작성.",
+                    },
+                    growth_tip: {
+                      type: Type.STRING,
+                      description: "발견한 강점을 더 발전시키기 위한 구체적이고 실천 가능한 조언 한 가지.",
+                    },
                   },
                   required: ["affirmation", "explanation", "growth_tip"],
                 },
