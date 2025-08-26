@@ -326,18 +326,35 @@ const ShortcomingsPage = ({
                     explanation: { type: Type.STRING },
                     growth_tip: { type: Type.STRING },
                   },
+                  required: ["affirmation", "explanation", "growth_tip"],
                 },
               },
             },
+            required: ["results"],
           },
         },
       });
 
       const jsonResponse = JSON.parse(response.text);
+
+      // Validate the response from the AI to prevent crashing on the next page
+      if (
+        !jsonResponse.results ||
+        !Array.isArray(jsonResponse.results) ||
+        jsonResponse.results.length === 0 ||
+        jsonResponse.results.length !== filledShortcomings.length
+      ) {
+        throw new Error("AI 응답이 비어있거나 형식이 올바르지 않습니다.");
+      }
       
       const affirmations = jsonResponse.results.map(r => r.affirmation);
       const explanations = jsonResponse.results.map(r => r.explanation);
       const growthTips = jsonResponse.results.map(r => r.growth_tip);
+
+      // Ensure that there are no undefined/null values which would break the next page
+      if (affirmations.some(item => !item) || explanations.some(item => !item) || growthTips.some(item => !item)) {
+          throw new Error("AI 응답에 누락된 필드가 있습니다.");
+      }
 
       setAffirmations(affirmations);
       setExplanations(explanations);
@@ -346,7 +363,7 @@ const ShortcomingsPage = ({
 
     } catch (e) {
       console.error(e);
-      setError("긍정 에너지를 생성하는 데 실패했어요. 다시 시도해주세요.");
+      setError("긍정 에너지 생성에 실패했어요. 입력한 단어를 바꾸거나 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading(false);
     }
