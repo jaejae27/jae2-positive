@@ -40,6 +40,7 @@ ${name} 학생의 단점 목록:
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
+                thinkingConfig: { thinkingBudget: 0 },
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
