@@ -315,7 +315,6 @@ const ShortcomingsPage = ({
         const responseText = await response.text();
         let errorMessage = responseText;
         try {
-          // Now, try to parse it as JSON.
           const errorData = JSON.parse(responseText);
           if (errorData && errorData.error) {
             errorMessage = errorData.error;
@@ -324,12 +323,26 @@ const ShortcomingsPage = ({
             }
           }
         } catch (parseError) {
-          // It's not JSON, that's fine. We already have the raw text in errorMessage.
+          // Not JSON, use raw text.
         }
         throw new Error(errorMessage);
       }
       
-      const data = await response.json();
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let fullResponse = "";
+
+      while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+              break;
+          }
+          fullResponse += decoder.decode(value, { stream: true });
+      }
+
+      // Now that the stream is complete, parse the full JSON string
+      const data = JSON.parse(fullResponse);
       
       if (!data.results || data.results.length === 0) {
         throw new Error("결과가 비어있습니다. 다시 시도해주세요.");
