@@ -24,17 +24,19 @@ module.exports = async (req, res) => {
         }
 
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const prompt = `너는 초등학생 ${name}의 잠재력을 분석하는 심리 분석 전문가야. ${name} 학생이 자신의 단점에 대해 솔직하게 이야기해줬어.
+        const prompt = `너의 역할: 너는 초등학생 ${name}의 잠재력을 분석하는 심리 분석 전문가다.
 
-${name} 학생의 단점 목록:
-- ${filledShortcomings.join('\n- ')}
+과업:
+${name} 학생의 단점 목록(${filledShortcomings.join(', ')})을 바탕으로, 각 단점을 긍정적인 강점으로 재해석하고, ${name} 학생의 종합적인 강점 프로필을 JSON 형식으로 생성한다.
 
-위 목록에 있는 단점들을 순서대로, 하나씩 긍정적인 강점으로 바꾸고, 그 이유와 성장 조언을 포함해서 JSON 형식으로 답변해줘.
-그리고 발견된 모든 강점들을 종합해서 ${name} 학생을 설명하는 요약(strength_summary) 하나를 만들어줘.
-
-- 'explanation'은 심리 검사 결과를 해석해주는 전문가처럼, ${name}님의 특성을 분석해서 "당신은 ~한 강점을 가진 사람입니다. 그래서 ~하는 경향이 있습니다." 와 같은 구조로 설명해줘. 말투는 '~입니다', '~합니다' 처럼 신뢰감 있고 전문적인 톤을 사용해줘.
-- 'growth_tip'은 '새로운 친구에게 질문 건네보기' 처럼, 구체적이고 바로 실천할 수 있는 짧은 미션 형태로 작성해줘.
-- 'strength_summary'는 '주변을 깊이 관찰하고 신중하게 생각하는 사람'처럼, 발견된 모든 강점들을 종합하여 ${name} 학생을 설명하는 명사구 형태로 작성해줘. '${name}은/는' 이나 '너는' 같은 주어는 절대 포함하지 마.`;
+JSON 출력 규칙:
+- 최상위 객체는 'strength_summary'와 'results' 키를 포함해야 한다.
+- 'strength_summary': 발견된 모든 강점들을 종합하여 ${name} 학생을 설명하는 명사구. 주어는 절대 포함하지 마. 예: '주변을 깊이 관찰하고 신중하게 생각하는 사람'.
+- 'results': 입력된 단점 순서대로, 각 단점에 대한 분석 결과를 담은 객체 배열.
+  - 각 객체는 'affirmation', 'explanation', 'growth_tip'을 포함해야 한다.
+  - 'affirmation': 단점을 강점으로 바꾼 짧고 긍정적인 문장.
+  - 'explanation': 심리 검사 결과처럼 전문적인 톤으로(~입니다, ~합니다) 강점을 설명. 예: "당신은 ~한 강점을 가진 사람입니다. 그래서 ~하는 경향이 있습니다."
+  - 'growth_tip': 즉시 실천 가능한 짧은 미션. 예: '새로운 친구에게 질문 건네보기'.`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
