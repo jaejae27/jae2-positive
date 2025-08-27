@@ -25,9 +25,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiKey = process.env.Gemini_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error("Gemini_API_KEY가 설정되지 않았습니다.");
+      console.error("GEMINI_API_KEY가 설정되지 않았습니다.");
       return res.status(500).json({ error: "서버 설정 오류가 발생했습니다." });
     }
 

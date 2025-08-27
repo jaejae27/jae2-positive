@@ -388,7 +388,7 @@ const ShortcomingsPage = ({
     } catch (e) {
       console.error("긍정 확언 생성 중 오류:", e);
       if (e.message && e.message.includes("서버 설정 오류")) {
-          setError("Gemini_API_KEY가 서버에 설정되지 않은 것 같습니다. 앱 관리자에게 문의하여 서버 환경 변수를 확인해주세요.");
+          setError("GEMINI_API_KEY가 서버에 설정되지 않은 것 같습니다. 앱 관리자에게 문의하여 서버 환경 변수를 확인해주세요.");
       } else {
           setError(`에너지 생성 중 오류가 발생했습니다: ${e.message}`);
       }
