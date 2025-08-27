@@ -1,22 +1,15 @@
 {
-  "name": "copy-of-긍정-에너지-발전소",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "geungjeong-eneoji-baljeonso",
+  "version": "1.0.0",
+  "description": "학생이 입력한 단점을 긍정적인 확언(affirmation)으로 변환해주는 교육적 기능을 가진 웹 애플리케이션입니다.",
+  "main": "index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "@google/genai": "^1.15.0",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "html2canvas": "^1.4.1"
-  },
-  "devDependencies": {
-    "@types/node": "^22.14.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@google/genai": "^1.15.0"
   }
 }
