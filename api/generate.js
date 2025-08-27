@@ -1,139 +1,105 @@
-// /api/generate.js (Vercel/Node serverless, CommonJS)
-const { GoogleGenAI, Type } = require("@google/genai");
+// /api/generate.js (Next.js API Route or Vercel Serverless Function)
 
-module.exports = async (req, res) => {
-  // 1) 메서드 체크
+import { GoogleGenAI, Type } from "@google/genai";
+
+async function getJsonBody(req) {
+  if (req.body && typeof req.body === "object") return req.body;
+  if (typeof req.body === "string" && req.body.trim() !== "") {
+    try { return JSON.parse(req.body); } catch { /* fallthrough */ }
+  }
+  return null;
+}
+
+export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method Not Allowed" });
+    return res.status(405).json({ error: "POST 요청만 허용됩니다." });
+  }
+
+  const body = await getJsonBody(req);
+  if (!body) {
+    return res.status(400).json({ error: "요청 본문이 비어있습니다." });
   }
 
   try {
-    // 2) 본문 파싱(문자열/객체 모두 대응)
-    let body = req.body;
-    if (typeof body === "string") {
-      try { body = JSON.parse(body); } catch { /* ignore */ }
-    }
-    if (!body || typeof body !== "object") {
-      return res.status(400).json({ error: "Invalid JSON body." });
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      console.error("API_KEY가 설정되지 않았습니다.");
+      return res.status(500).json({ error: "서버 설정 오류가 발생했습니다." });
     }
 
     const { name, filledShortcomings } = body;
 
-    // 3) 입력 검증
-    if (
-      !name ||
-      !filledShortcomings ||
-      !Array.isArray(filledShortcomings) ||
-      filledShortcomings.length === 0
-    ) {
-      return res
-        .status(400)
-        .json({ error: "Name and shortcomings are required." });
-    }
-
-    // 4) API 키
-    const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
-    if (!apiKey) {
-      console.error("API key not configured.");
-      return res
-        .status(500)
-        .json({ error: "API key is not configured on the server." });
+    if (!name || !filledShortcomings || !Array.isArray(filledShortcomings) || filledShortcomings.length === 0) {
+      return res.status(400).json({ error: "이름과 단점을 올바르게 입력해주세요." });
     }
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // 5) 프롬프트
-    const systemInstruction =
-      "You are a psychological analyst for elementary school students. Your task is to reframe a student's stated shortcomings into positive strengths. You must strictly output JSON that adheres to the provided schema. Do not output anything else.";
+    const shortcomingsText = filledShortcomings.map((s, i) => `${i + 1}. ${s}`).join('\n');
+    const userPrompt = `당신은 학생들을 위한 친절하고 격려하는 AI 상담가입니다. 학생이 스스로 인식하는 단점을 긍정적인 강점으로 재해석하고 성장을 위한 실행 가능한 조언을 제공하는 임무를 맡고 있습니다.
 
-    const userPrompt = `Analyze the following student and their shortcomings.
-- Student Name: ${name}
-- Shortcomings: ${JSON.stringify(filledShortcomings)}
+학생 이름: ${name}
+학생이 스스로 인식하는 단점:
+${shortcomingsText}
 
-Based on these, generate a strength summary, and for each shortcoming, provide a positive affirmation, a detailed explanation, and a practical growth tip.`;
+이를 바탕으로 다음 구조를 가진 JSON 응답을 생성해주세요:
+1. 'strength_summary': 학생의 전반적인 핵심 강점을 요약하는 강력하고 희망적인 한 문장.
+2. 'results' 배열: 제공된 각 단점에 대해 다음을 포함하는 객체를 이 배열에 생성합니다:
+   a. 'affirmation': 단점을 강점으로 재구성하는 긍정적인 확언 문장. (예: "저의 꼼꼼한 성격은 저의 철저함과 세심함의 증거입니다.")
+   b. 'explanation': 이 인식된 약점이 실제로는 다양한 상황에서 가치 있는 강점인 이유를 설명하는 상세한 문단.
+   c. 'growth_tips': 학생이 이 잠재력을 활용하기 위한 2-3가지 구체적이고 실행 가능한 팁 배열.`;
 
-    // 6) 스키마(Type enum 사용) — 단일 growth_tip(문자열) 버전
     const responseSchema = {
-      type: Type.OBJECT,
-      properties: {
-        strength_summary: { type: Type.STRING },
-        results: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              affirmation: { type: Type.STRING },
-              explanation: { type: Type.STRING },
-              growth_tip: { type: Type.STRING },
+        type: Type.OBJECT,
+        properties: {
+            strength_summary: {
+                type: Type.STRING,
+                description: "분석을 바탕으로 학생의 전반적인 핵심 강점을 요약하는 강력한 한 문장."
             },
-            required: ["affirmation", "explanation", "growth_tip"],
-          },
+            results: {
+                type: Type.ARRAY,
+                description: "각 단점에 대한 분석 결과 배열.",
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        affirmation: {
+                            type: Type.STRING,
+                            description: "단점을 강점으로 재구성하는 긍정적인 확언 문장."
+                        },
+                        explanation: {
+                            type: Type.STRING,
+                            description: "단점이 어떻게 강점으로 비춰질 수 있는지에 대한 상세한 설명."
+                        },
+                        growth_tips: {
+                            type: Type.ARRAY,
+                            description: "개인적 성장을 위한 실행 가능한 팁 목록.",
+                            items: {
+                                type: Type.STRING
+                            }
+                        }
+                    },
+                    required: ["affirmation", "explanation", "growth_tips"]
+                }
+            }
         },
-      },
-      required: ["strength_summary", "results"],
+        required: ["strength_summary", "results"]
     };
 
-    // 7) 모델 호출(스트리밍 비활성화: 한 번에 완성 JSON 받기)
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      systemInstruction,
       contents: userPrompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema,
-        // 생각 토큰 비활성화(선택)
-        thinkingConfig: { thinkingBudget: 0 },
+        responseSchema: responseSchema,
       },
     });
 
-    const jsonText = response.text;
-    if (!jsonText || typeof jsonText !== "string" || jsonText.trim() === "") {
-      throw new Error("Empty response from model.");
-    }
+    const resultJson = JSON.parse(response.text);
+    return res.status(200).json(resultJson);
 
-    // 8) 파싱 + 최소 검증
-    let data;
-    try {
-      data = JSON.parse(jsonText);
-    } catch (e) {
-      console.error("JSON parse failed:", jsonText);
-      throw new Error("Model returned invalid JSON.");
-    }
-
-    const ok =
-      typeof data?.strength_summary === "string" &&
-      Array.isArray(data?.results) &&
-      data.results.length > 0 &&
-      data.results.every(
-        (r) =>
-          r &&
-          typeof r.affirmation === "string" &&
-          typeof r.explanation === "string" &&
-          typeof r.growth_tip === "string"
-      );
-
-    if (!ok) {
-      console.error("Schema validation failed:", JSON.stringify(data, null, 2));
-      throw new Error("Schema validation failed.");
-    }
-
-    // 9) 성공 응답
-    return res.status(200).json(data);
   } catch (error) {
-    console.error("Error in serverless function:", error);
-    const msg = String(error?.message || error);
-
-    let userMsg = "An internal server error occurred on the API route.";
-    if (msg.includes("API key")) userMsg = "API key configuration error.";
-    if (msg.includes("Empty response")) userMsg = "No response from the model.";
-    if (msg.includes("invalid JSON")) userMsg = "Model returned invalid JSON.";
-    if (msg.includes("Schema validation")) userMsg = "Invalid model output shape.";
-
-    if (!res.headersSent) {
-      return res.status(500).json({ error: userMsg, details: msg });
-    }
-    // 혹시 이미 헤더 보냈으면 안전 종료
-    res.end();
+    console.error("Gemini API 호출 중 오류 발생:", error);
+    return res.status(500).json({ error: "분석 생성 중 오류가 발생했습니다.", details: error.message });
   }
-};
+}
