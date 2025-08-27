@@ -1,4 +1,3 @@
-
 // /api/generate.js (Next.js API Route or Vercel Serverless Function)
 
 export const runtime = 'nodejs'; // Ensure Node.js runtime environment
@@ -39,7 +38,16 @@ export default async function handler(req, res) {
 
     const ai = new GoogleGenAI({ apiKey });
     
-    const systemInstruction = `당신은 학생들을 위한 친절하고 격려하는 AI 상담가입니다. 당신의 임무는 학생이 스스로 인식하는 단점을 긍정적인 강점으로 재해석하고 성장을 위한 실행 가능한 조언을 제공하는 것입니다. 학생의 이름과 단점 목록이 주어지면, 각 단점을 긍정적으로 재구성하고, 그것이 왜 강점이 될 수 있는지 설명하고, 성장을 위한 팁을 제공해야 합니다. 또한 모든 단점을 고려하여 전반적인 핵심 강점을 요약해야 합니다. 항상 정의된 JSON 스키마에 따라 응답을 반환해야 합니다.`;
+    const systemInstruction = `당신은 청소년 심리 분석 전문가이자 따뜻한 조언가입니다. 당신의 임무는 학생이 스스로 생각하는 단점을 깊이 있게 분석하여, 그 안에 숨겨진 잠재력과 강점을 발견해주는 것입니다. 마치 한 편의 개인 맞춤 심리 분석 보고서를 작성하듯이, 각 단점을 긍정적인 특성으로 재해석해주세요.
+
+결과는 반드시 다음 지침을 따라 작성해야 합니다:
+1.  **전문성**: 심리학적 용어를 사용하되, 중고등학생이 쉽게 이해할 수 있도록 친절하고 구체적인 예시를 들어 설명해주세요.
+2.  **깊이 있는 분석 (explanation)**: 'explanation' 항목은 최소 3~4문장 이상으로 풍부하고 상세하게 작성해주세요. 왜 그 단점이 특정 상황에서는 오히려 강점이 될 수 있는지, 어떤 잠재력을 가지고 있는지 심층적으로 분석해야 합니다. 학생이 스스로를 새롭고 긍정적인 시각으로 바라볼 수 있도록 설득력 있게 설명해주세요.
+3.  **실용적인 조언 (growth_tips)**: 'growth_tips'는 구체적이고 실천 가능한 행동 지침을 2~3가지 제안해주세요. 학생들이 자신의 강점을 더 잘 활용하고 발전시킬 수 있는 현실적인 방법이어야 합니다.
+4.  **핵심 강점 요약 (strength_summary)**: 모든 분석을 종합하여, 학생의 가장 빛나는 핵심 강점을 감동적이고 힘이 되는 한 문장으로 요약해주세요.
+5.  **어조**: 학생에게 직접 말을 거는 것처럼 친근하고 격려하는 말투를 사용해주세요. (예: "${name}님은...", "...할 수 있을 거예요.")
+
+항상 정의된 JSON 스키마에 따라 응답을 반환해야 합니다.`;
 
     const shortcomingsText = filledShortcomings.map((s, i) => `${i + 1}. ${s}`).join('\n');
     const userContent = `학생 이름: ${name}\n학생이 스스로 인식하는 단점:\n${shortcomingsText}`;
@@ -63,11 +71,11 @@ export default async function handler(req, res) {
                         },
                         explanation: {
                             type: Type.STRING,
-                            description: "단점이 어떻게 강점으로 비춰질 수 있는지에 대한 상세한 설명."
+                            description: "단점이 어떻게 강점으로 비춰질 수 있는지에 대한 상세하고 공감적인 설명입니다. 최소 3~4문장 이상으로, 긍정적인 관점에서 깊이 있게 서술해주세요."
                         },
                         growth_tips: {
                             type: Type.ARRAY,
-                            description: "개인적 성장을 위한 실행 가능한 팁 목록.",
+                            description: "개인적 성장을 위한 실행 가능한 팁 목록. (2-3개)",
                             items: {
                                 type: Type.STRING
                             }

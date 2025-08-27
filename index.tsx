@@ -549,18 +549,34 @@ const FinalCardPage = ({
   onRestart,
   onBack,
 }) => {
-    const cardRef = useRef(null);
+    const cardRef = useRef<HTMLDivElement>(null);
 
     const downloadCard = () => {
         if (cardRef.current) {
-            html2canvas(cardRef.current, { 
+            const cardElement = cardRef.current;
+            const clone = cardElement.cloneNode(true) as HTMLElement;
+
+            // Style the clone to be off-screen and fully expanded
+            clone.style.position = 'absolute';
+            clone.style.left = '-9999px';
+            clone.style.top = '0px';
+            clone.style.maxHeight = 'none';
+            clone.style.overflowY = 'visible';
+            // Set a width, as absolute positioning might collapse it
+            clone.style.width = `${cardElement.offsetWidth}px`;
+
+            document.body.appendChild(clone);
+
+            html2canvas(clone, { 
                 useCORS: true,
-                backgroundColor: null, // Ensure transparent background is handled
+                backgroundColor: null,
             }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = `${name}_긍정카드.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
+            }).finally(() => {
+                document.body.removeChild(clone);
             });
         }
     };
@@ -584,19 +600,19 @@ const FinalCardPage = ({
                 </div>
                 <div className="card-content">
                     <div className="highlight-box">
-                        <h4>나의 핵심 강점</h4>
+                        <h4>🌟 나의 핵심 강점</h4>
                         <p className="strength-summary">"{strengthSummary}"</p>
                     </div>
 
                     <div className="highlight-box">
-                        <h4>새롭게 발견한 나의 강점</h4>
+                        <h4>💖 새롭게 발견한 나의 강점</h4>
                         <ul className="affirmation-list">
                             {affirmations.map((aff, index) => <li key={index}>{aff}</li>)}
                         </ul>
                     </div>
                     
                     <div className="highlight-box">
-                        <h4>나의 성장 미션</h4>
+                        <h4>🚀 나의 성장 미션</h4>
                         <ul className="mission-list">
                             {growthTips.slice(0, 3).map((tip, index) => ( // Show up to 3 for brevity
                                 <li key={index} className="mission-item">
@@ -608,9 +624,9 @@ const FinalCardPage = ({
                     </div>
 
                     <div className="highlight-box">
-                        <h4>친구가 보내는 응원</h4>
+                        <h4>💌 친구가 보내는 응원</h4>
                         <p className="card-quote">"{friendMessage}"</p>
-                        <p className="friend-name">- {friendName} 드림 -</p>
+                        <p className="friend-name">- {friendName} 드림 💝 -</p>
                     </div>
                 </div>
             </div>
