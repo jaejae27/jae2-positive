@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { GoogleGenAI, Type } from "@google/genai";
 import html2canvas from "html2canvas";
 
 const App = () => {
@@ -147,6 +146,7 @@ const App = () => {
             name={name}
             template={template}
             affirmations={affirmations}
+            strengthSummary={strengthSummary}
             friendName={friendName}
             friendMessage={friendMessage}
             growthTips={growthTips}
@@ -342,81 +342,20 @@ const ShortcomingsPage = ({
 
     setLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-      const userPrompt = `당신은 세상에서 가장 따뜻한 마음을 가진 초등학생 전문 심리 상담가이자 긍정 코치입니다. 학생이 스스로의 단점이라고 생각하는 부분을 세상에 하나뿐인 특별한 강점으로 바꾸어주는 놀라운 능력을 가지고 있습니다. 학생의 마음에 깊이 공감하며, 마치 바로 옆에서 다정하게 이야기해주는 것처럼, 매우 상세하고 풍부한 설명으로 아이에게 자신감과 희망을 불어넣어 주세요. 모든 답변은 학생의 눈높이에 맞춰, 쉽고 친절하며, 가슴 따뜻해지는 희망적인 말투로 작성해야 합니다.
-
-다음은 학생 정보와 스스로 생각하는 단점 목록입니다. 각 단점을 분석하여 긍정적인 확언, 강점으로의 재해석, 그리고 성장을 위한 구체적인 미션 3가지를 제공해주세요. 또한, 전체 분석을 바탕으로 학생의 핵심 강점을 요약해주세요.
-
-[분석 예시]
-- 단점: "산만하다"
-- 긍정 확언: "나는 호기심이 많고 창의적인 탐험가야!"
-- 강점 재해석: "우리 ${name}(이)가 '산만하다'고 느끼는 건, 사실 남들보다 훨씬 더 넓은 세상을 보고 있다는 멋진 신호예요! 마치 머릿속에 수많은 안테나가 있어서, 주변의 재미있는 정보들을 쏙쏙 수집하는 탐험가 같달까요? 한 가지 길만 보는 친구들과 달리, 우리 ${name}(이)는 여러 갈래의 길을 동시에 발견하고, 그 길들을 연결해서 아무도 생각지 못한 새로운 지도를 그려낼 수 있는 특별한 능력을 가졌어요. 그래서 친구들을 깜짝 놀라게 할 기발한 아이디어를 떠올리거나, 복잡한 문제도 여러 각도에서 보며 해결의 실마리를 찾아내는 데 아주 유리하답니다. 이건 정말 귀하고 소중한 재능이에요!"
-- 성장 미션: ["'나만의 아이디어 수첩'에 생각을 기록하기", "뽀모도로 타이머로 25분 집중 놀이하기", "주말마다 새로운 장소나 책 탐험하기"]
-
-[학생 정보]
-- 이름: ${name}
-- 단점: ${JSON.stringify(filledShortcomings)}
-
-이제 위 예시와 같이, 주어진 학생의 단점들을 분석하여 JSON 형식으로 결과를 제공해주세요. 'explanation' 부분은 예시처럼 학생의 이름을 부르며, 최소 3문장 이상의 길고 상세하며 따뜻한 내용으로 작성해주세요. 'growth_tips'는 구체적이면서도 간단하게 요약된 문장으로 반드시 3가지씩 제안해야 합니다.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: userPrompt,
-        config: {
-            responseMimeType: 'application/json',
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    strength_summary: {
-                        type: Type.STRING,
-                        description: "학생의 핵심 강점에 대한 간결하고 희망적인 요약입니다."
-                    },
-                    results: {
-                        type: Type.ARRAY,
-                        description: "각 단점에 대한 분석 결과 배열입니다.",
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                affirmation: {
-                                    type: Type.STRING,
-                                    description: "단점과 관련된 짧고 긍정적인 확언입니다."
-                                },
-                                explanation: {
-                                    type: Type.STRING,
-                                    description: "단점이 어떻게 강점으로 비춰질 수 있는지에 대한 상세하고 따뜻하며, 학생의 이름을 부르는 3문장 이상의 긴 설명입니다."
-                                },
-                                growth_tips: {
-                                    type: Type.ARRAY,
-                                    description: "학생이 이 강점을 키울 수 있는 구체적이고 실행 가능한 간단한 미션 3가지입니다.",
-                                    items: {
-                                        type: Type.STRING
-                                    }
-                                }
-                            },
-                            required: ["affirmation", "explanation", "growth_tips"]
-                        }
-                    }
-                },
-                required: ["strength_summary", "results"]
-            },
-            thinkingConfig: { thinkingBudget: 0 },
+      const apiResponse = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ name: name, filledShortcomings: filledShortcomings }),
       });
 
-      const jsonText = response.text;
-      if (!jsonText) {
-         throw new Error("AI 모델이 빈 응답을 반환했습니다.");
+      const data = await apiResponse.json();
+
+      if (!apiResponse.ok) {
+        throw new Error(data.error || '서버에서 알 수 없는 오류가 발생했습니다.');
       }
       
-      let data;
-      try {
-          data = JSON.parse(jsonText);
-      } catch (parseError) {
-          console.error('AI 응답에서 JSON 파싱 실패:', jsonText);
-          throw new Error("AI 모델이 유효하지 않은 형식의 데이터를 반환했습니다.");
-      }
-
       if (!data.strength_summary || !data.results || data.results.length === 0 || !data.results.every(r => r.growth_tips && Array.isArray(r.growth_tips))) {
         throw new Error("AI 분석 결과가 비어있거나 올바르지 않습니다. 다시 시도해주세요.");
       }
@@ -580,6 +519,7 @@ const FinalCardPage = ({
   name,
   template,
   affirmations,
+  strengthSummary,
   friendName,
   friendMessage,
   growthTips,
@@ -612,6 +552,54 @@ const FinalCardPage = ({
                 className="card-container"
                 style={{
                     backgroundColor: template.bg,
-                    color: template.font
+                    color: template.font,
                 }}
             >
+                <div className="card-header">
+                    <h3 className="card-title">✨ {name}님의 긍정 에너지 카드 ✨</h3>
+                    <p className="card-user-info">{studentId} {name}</p>
+                </div>
+                <div className="card-content">
+                    <div className="highlight-box">
+                        <h4>나의 핵심 강점</h4>
+                        <p className="strength-summary">"{strengthSummary}"</p>
+                    </div>
+
+                    <div className="highlight-box">
+                        <h4>새롭게 발견한 나의 강점</h4>
+                        <ul className="affirmation-list">
+                            {affirmations.map((aff, index) => <li key={index}>{aff}</li>)}
+                        </ul>
+                    </div>
+                    
+                    <div className="highlight-box">
+                        <h4>나의 성장 미션</h4>
+                        <ul className="mission-list">
+                            {growthTips.slice(0, 3).map((tip, index) => ( // Show up to 3 for brevity
+                                <li key={index} className="mission-item">
+                                    <input type="checkbox" id={`mission-${index}`} readOnly checked={false} />
+                                    <label htmlFor={`mission-${index}`}>{tip}</label>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <div className="highlight-box">
+                        <h4>친구가 보내는 응원</h4>
+                        <p className="card-quote">"{friendMessage}"</p>
+                        <p className="friend-name">- {friendName} 드림 -</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="button-group">
+                <button className="btn btn-secondary" onClick={onBack}>이전</button>
+                <button className="btn" onClick={downloadCard}>카드 저장하기</button>
+            </div>
+            <button className="btn" onClick={onRestart}>다시 시작하기</button>
+        </div>
+    );
+};
+
+
+createRoot(document.getElementById("root")!).render(<App />);
