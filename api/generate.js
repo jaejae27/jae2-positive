@@ -1,4 +1,7 @@
+
 // /api/generate.js (Next.js API Route or Vercel Serverless Function)
+
+export const runtime = 'nodejs'; // Ensure Node.js runtime environment
 
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -22,9 +25,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.Gemini_API_KEY;
     if (!apiKey) {
-      console.error("API_KEY가 설정되지 않았습니다.");
+      console.error("Gemini_API_KEY가 설정되지 않았습니다.");
       return res.status(500).json({ error: "서버 설정 오류가 발생했습니다." });
     }
 
@@ -35,20 +38,11 @@ export default async function handler(req, res) {
     }
 
     const ai = new GoogleGenAI({ apiKey });
+    
+    const systemInstruction = `당신은 학생들을 위한 친절하고 격려하는 AI 상담가입니다. 당신의 임무는 학생이 스스로 인식하는 단점을 긍정적인 강점으로 재해석하고 성장을 위한 실행 가능한 조언을 제공하는 것입니다. 학생의 이름과 단점 목록이 주어지면, 각 단점을 긍정적으로 재구성하고, 그것이 왜 강점이 될 수 있는지 설명하고, 성장을 위한 팁을 제공해야 합니다. 또한 모든 단점을 고려하여 전반적인 핵심 강점을 요약해야 합니다. 항상 정의된 JSON 스키마에 따라 응답을 반환해야 합니다.`;
 
     const shortcomingsText = filledShortcomings.map((s, i) => `${i + 1}. ${s}`).join('\n');
-    const userPrompt = `당신은 학생들을 위한 친절하고 격려하는 AI 상담가입니다. 학생이 스스로 인식하는 단점을 긍정적인 강점으로 재해석하고 성장을 위한 실행 가능한 조언을 제공하는 임무를 맡고 있습니다.
-
-학생 이름: ${name}
-학생이 스스로 인식하는 단점:
-${shortcomingsText}
-
-이를 바탕으로 다음 구조를 가진 JSON 응답을 생성해주세요:
-1. 'strength_summary': 학생의 전반적인 핵심 강점을 요약하는 강력하고 희망적인 한 문장.
-2. 'results' 배열: 제공된 각 단점에 대해 다음을 포함하는 객체를 이 배열에 생성합니다:
-   a. 'affirmation': 단점을 강점으로 재구성하는 긍정적인 확언 문장. (예: "저의 꼼꼼한 성격은 저의 철저함과 세심함의 증거입니다.")
-   b. 'explanation': 이 인식된 약점이 실제로는 다양한 상황에서 가치 있는 강점인 이유를 설명하는 상세한 문단.
-   c. 'growth_tips': 학생이 이 잠재력을 활용하기 위한 2-3가지 구체적이고 실행 가능한 팁 배열.`;
+    const userContent = `학생 이름: ${name}\n학생이 스스로 인식하는 단점:\n${shortcomingsText}`;
 
     const responseSchema = {
         type: Type.OBJECT,
@@ -88,14 +82,23 @@ ${shortcomingsText}
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: userPrompt,
+      contents: userContent,
       config: {
+        systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: responseSchema,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
 
-    const resultJson = JSON.parse(response.text);
+    let jsonStr = response.text.trim();
+    if (jsonStr.startsWith("```json")) {
+        jsonStr = jsonStr.substring(7, jsonStr.length - 3).trim();
+    } else if (jsonStr.startsWith("```")) {
+        jsonStr = jsonStr.substring(3, jsonStr.length - 3).trim();
+    }
+
+    const resultJson = JSON.parse(jsonStr);
     return res.status(200).json(resultJson);
 
   } catch (error) {

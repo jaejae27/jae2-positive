@@ -280,19 +280,20 @@ const ShortcomingsPage = ({
     let intervalId = null;
     if (loading) {
       const messages = [
-        "긍정 에너지 주파수를 맞추고 있어요...",
-        "강점 원석을 탐색하고 있어요...",
-        "AI 분석가들이 열심히 토론하고 있어요...",
-        "부정적인 생각을 긍정 회로로 변환 중...",
-        "거의 다 됐어요! 멋진 결과가 곧 나타납니다.",
+        "AI 분석 시스템에 연결하고 있어요...",
+        "입력하신 단어를 정밀하게 분석 중입니다...",
+        "숨겨진 강점의 조각들을 찾고 있어요.",
+        "긍정 에너지로 변환할 준비를 하고 있어요!",
+        "데이터를 멋진 카드로 만들고 있습니다...",
+        "거의 다 됐어요! 잠시만 기다려주세요.",
       ];
       let messageIndex = 0;
-      setLoadingMessage(messages[messageIndex]); // Set initial message immediately
+      setLoadingMessage(messages[messageIndex]);
 
       intervalId = setInterval(() => {
         messageIndex = (messageIndex + 1) % messages.length;
         setLoadingMessage(messages[messageIndex]);
-      }, 2500);
+      }, 2000);
     }
     return () => {
       if (intervalId) {
@@ -350,25 +351,47 @@ const ShortcomingsPage = ({
         body: JSON.stringify({ name: name, filledShortcomings: filledShortcomings }),
       });
 
+      if (!apiResponse.ok) {
+        let errorText = `서버에서 오류가 발생했습니다 (상태 코드: ${apiResponse.status}).`;
+        if (apiResponse.status === 504) {
+            errorText = "AI 분석 요청이 너무 많아 시간이 초과되었어요. 잠시 후 다시 시도해주세요.";
+        } else {
+            try {
+                const errorData = await apiResponse.json();
+                errorText = errorData.error || errorText;
+            } catch (e) {
+                // The error response wasn't JSON.
+            }
+        }
+        throw new Error(errorText);
+      }
+      
       const data = await apiResponse.json();
 
-      if (!apiResponse.ok) {
-        throw new Error(data.error || '서버에서 알 수 없는 오류가 발생했습니다.');
+      if (typeof data !== 'object' || data === null) {
+        throw new Error("AI로부터 유효한 분석 결과를 받지 못했습니다. 다시 시도해주세요.");
       }
       
-      if (!data.strength_summary || !data.results || data.results.length === 0 || !data.results.every(r => r.growth_tips && Array.isArray(r.growth_tips))) {
-        throw new Error("AI 분석 결과가 비어있거나 올바르지 않습니다. 다시 시도해주세요.");
+      const validResults = (data.results || []).filter(r => r && typeof r === 'object');
+      const summary = data.strength_summary || `${name}님은 무한한 가능성을 가진 멋진 사람입니다.`;
+
+      if (validResults.length === 0) {
+          throw new Error("AI가 강점을 분석하지 못했어요. 조금 다른 단어로 다시 시도해볼까요?");
       }
       
-      setAffirmations(data.results.map(r => r.affirmation));
-      setExplanations(data.results.map(r => r.explanation));
-      setGrowthTips(data.results.flatMap(r => r.growth_tips));
-      setStrengthSummary(data.strength_summary);
+      setAffirmations(validResults.map(r => r.affirmation || "긍정적인 마음을 가지세요."));
+      setExplanations(validResults.map(r => r.explanation || "모든 경험은 성장의 기회입니다."));
+      setGrowthTips(validResults.flatMap(r => r.growth_tips || []));
+      setStrengthSummary(summary);
       onNext();
 
     } catch (e) {
       console.error("긍정 확언 생성 중 오류:", e);
-      setError(`에너지 생성 중 오류가 발생했습니다: ${e.message}`);
+      if (e.message && e.message.includes("서버 설정 오류")) {
+          setError("Gemini_API_KEY가 서버에 설정되지 않은 것 같습니다. 앱 관리자에게 문의하여 서버 환경 변수를 확인해주세요.");
+      } else {
+          setError(`에너지 생성 중 오류가 발생했습니다: ${e.message}`);
+      }
     } finally {
       setLoading(false);
     }
