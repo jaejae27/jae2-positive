@@ -521,3 +521,50 @@ input[type="color"]::-webkit-color-swatch {
   color: #555;
   font-weight: bold;
 }
+
+.keyword-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.keyword-btn {
+  padding: 10px 20px;
+  border: 2px solid #84a6ff;
+  border-radius: 20px;
+  background-color: white;
+  color: #84a6ff;
+  font-family: 'Gowun Dodum', sans-serif;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.keyword-btn.selected {
+  background-color: #84a6ff;
+  color: white;
+}
+
+.keyword-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px var(--shadow);
+}
+
+.energy-name-box {
+    margin-top: 10px;
+    padding: 15px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    border: 2px dashed #84a6ff;
+    text-align: center;
+}
+
+.energy-name-text {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #333;
+    margin: 0;
+}

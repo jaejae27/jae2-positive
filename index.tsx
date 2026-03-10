@@ -2,19 +2,20 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import html2canvas from "html2canvas";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const App = () => {
   const [page, setPage] = useState(1);
   const [studentId, setStudentId] = useState("");
   const [name, setName] = useState("");
   const [shortcomings, setShortcomings] = useState([""]);
-  const [affirmations, setAffirmations] = useState<string[]>([]);
+  const [affirmations, setAffirmations] = useState<{affirmation: string, keyword: string}[]>([]);
   const [explanations, setExplanations] = useState<string[]>([]);
   const [growthTips, setGrowthTips] = useState<string[]>([]);
   const [strengthSummary, setStrengthSummary] = useState("");
   const [currentExplanationIndex, setCurrentExplanationIndex] = useState(0);
-  const [friendName, setFriendName] = useState("");
-  const [friendMessage, setFriendMessage] = useState("");
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
+  const [energyName, setEnergyName] = useState("");
   const [template, setTemplate] = useState({
     bg: "#FFD9FA",
     font: "#333333",
@@ -45,8 +46,8 @@ const App = () => {
       setGrowthTips([]);
       setStrengthSummary("");
       setCurrentExplanationIndex(0);
-      setFriendName("");
-      setFriendMessage("");
+      setSelectedKeywords([]);
+      setEnergyName("");
       setTemplate({ bg: "#FFD9FA", font: "#333333" });
       setLoading(false);
       setError("");
@@ -113,25 +114,17 @@ const App = () => {
         );
       case 5:
         return (
-            <FriendMessagePage
+            <ModifierSelectionPage
                 name={name}
-                friendName={friendName}
-                setFriendName={setFriendName}
-                friendMessage={friendMessage}
-                setFriendMessage={setFriendMessage}
+                affirmations={affirmations}
+                selectedKeywords={selectedKeywords}
+                setSelectedKeywords={setSelectedKeywords}
+                setEnergyName={setEnergyName}
                 error={error}
+                setError={setError}
                 onNext={() => validateAndProceed(() => {
-                    if(!friendName.trim() || !friendMessage.trim()){
-                        setError("친구의 이름과 응원 메시지를 모두 입력해주세요.");
-                        return false;
-                    }
-                    if (/^(\s*([ㄱ-ㅎㅏ-ㅣ])\2{1,}\s*)+$/.test(friendMessage) || /^(\s*([a-zA-Z])\2{1,}\s*)+$/.test(friendMessage)) {
-                       setError("의미있는 문장으로 작성해주세요.");
-                       return false;
-                    }
-                    const inappropriateWords = ["욕", "씨발", "죽어", "병신", "바보", "멍청이", "때리", "괴롭"];
-                    if(inappropriateWords.some(word => friendMessage.includes(word))){
-                        setError("부적절한 에너지가 감지되었습니다. 욕설, 폭력, 비방의 글은 작성할 수 없습니다.");
+                    if(selectedKeywords.length < 3){
+                        setError("3개 이상의 수식어를 선택해주세요.");
                         return false;
                     }
                     return true;
@@ -145,10 +138,9 @@ const App = () => {
             studentId={studentId}
             name={name}
             template={template}
-            affirmations={affirmations}
+            affirmations={affirmations.map(a => a.affirmation)}
             strengthSummary={strengthSummary}
-            friendName={friendName}
-            friendMessage={friendMessage}
+            energyName={energyName}
             growthTips={growthTips}
             onRestart={resetApp}
             onBack={handleBack}
@@ -343,30 +335,86 @@ const ShortcomingsPage = ({
 
     setLoading(true);
     try {
-      const apiResponse = await fetch('/api/generate', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
+      const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+      if (!apiKey) {
+        throw new Error("API 키가 설정되지 않았습니다. AI Studio 설정에서 API 키를 확인해주세요.");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const systemInstruction = `당신은 청소년 심리 분석 전문가이자 따뜻한 조언가입니다. 당신의 임무는 학생이 스스로 생각하는 단점을 깊이 있게 분석하여, 그 안에 숨겨진 잠재력과 강점을 발견해주는 것입니다. 마치 한 편의 개인 맞춤 심리 분석 보고서를 작성하듯이, 각 단점을 긍정적인 특성으로 재해석해주세요.
+
+결과는 반드시 다음 지침을 따라 작성해야 합니다:
+1.  **전문성**: 심리학적 용어를 사용하되, 중고등학생이 쉽게 이해할 수 있도록 친절하고 구체적인 예시를 들어 설명해주세요.
+2.  **깊이 있는 분석 (explanation)**: 'explanation' 항목은 최소 3~4문장 이상으로 풍부하고 상세하게 작성해주세요. 왜 그 단점이 특정 상황에서는 오히려 강점이 될 수 있는지, 어떤 잠재력을 가지고 있는지 심층적으로 분석해야 합니다. 학생이 스스로를 새롭고 긍정적인 시각으로 바라볼 수 있도록 설득력 있게 설명해주세요.
+3.  **실용적인 조언 (growth_tips)**: 'growth_tips'는 구체적이고 실천 가능한 행동 지침을 2~3가지 제안해주세요. 학생들이 자신의 강점을 더 잘 활용하고 발전시킬 수 있는 현실적인 방법이어야 합니다.
+4.  **핵심 강점 요약 (strength_summary)**: 모든 분석을 종합하여, 학생의 가장 빛나는 핵심 강점을 감동적이고 힘이 되는 한 문장으로 요약해주세요.
+5.  **어조**: 학생에게 직접 말을 거는 것처럼 친근하고 격려하는 말투를 사용해주세요. (예: "${name}님은...", "...할 수 있을 거예요.")
+6.  **키워드 (keyword)**: 각 강점을 대표하는 핵심 단어(명사형)를 하나씩 추출해주세요. (예: "호기심", "신중함", "열정", "배려")
+
+항상 정의된 JSON 스키마에 따라 응답을 반환해야 합니다.`;
+
+      const shortcomingsText = filledShortcomings.map((s, i) => `${i + 1}. ${s}`).join('\n');
+      const userContent = `학생 이름: ${name}\n학생이 스스로 인식하는 단점:\n${shortcomingsText}`;
+
+      const responseSchema = {
+          type: Type.OBJECT,
+          properties: {
+              strength_summary: {
+                  type: Type.STRING,
+                  description: "분석을 바탕으로 학생의 전반적인 핵심 강점을 요약하는 강력한 한 문장."
+              },
+              results: {
+                  type: Type.ARRAY,
+                  description: "각 단점에 대한 분석 결과 배열.",
+                  items: {
+                      type: Type.OBJECT,
+                      properties: {
+                          affirmation: {
+                              type: Type.STRING,
+                              description: "단점을 강점으로 재구성하는 긍정적인 확언 문장."
+                          },
+                          keyword: {
+                              type: Type.STRING,
+                              description: "해당 강점을 대표하는 짧은 핵심 키워드 (예: 호기심, 신중함)."
+                          },
+                          explanation: {
+                              type: Type.STRING,
+                              description: "단점이 어떻게 강점으로 비춰질 수 있는지에 대한 상세하고 공감적인 설명입니다. 최소 3~4문장 이상으로, 긍정적인 관점에서 깊이 있게 서술해주세요."
+                          },
+                          growth_tips: {
+                              type: Type.ARRAY,
+                              description: "개인적 성장을 위한 실행 가능한 팁 목록. (2-3개)",
+                              items: {
+                                  type: Type.STRING
+                              }
+                          }
+                      },
+                      required: ["affirmation", "keyword", "explanation", "growth_tips"]
+                  }
+              }
+          },
+          required: ["strength_summary", "results"]
+      };
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: userContent,
+        config: {
+          systemInstruction: systemInstruction,
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
         },
-        body: JSON.stringify({ name: name, filledShortcomings: filledShortcomings }),
       });
 
-      if (!apiResponse.ok) {
-        let errorText = `서버에서 오류가 발생했습니다 (상태 코드: ${apiResponse.status}).`;
-        if (apiResponse.status === 504) {
-            errorText = "AI 분석 요청이 너무 많아 시간이 초과되었어요. 잠시 후 다시 시도해주세요.";
-        } else {
-            try {
-                const errorData = await apiResponse.json();
-                errorText = errorData.error || errorText;
-            } catch (e) {
-                // The error response wasn't JSON.
-            }
-        }
-        throw new Error(errorText);
+      let jsonStr = response.text.trim();
+      if (jsonStr.startsWith("```json")) {
+          jsonStr = jsonStr.substring(7, jsonStr.length - 3).trim();
+      } else if (jsonStr.startsWith("```")) {
+          jsonStr = jsonStr.substring(3, jsonStr.length - 3).trim();
       }
-      
-      const data = await apiResponse.json();
+
+      const data = JSON.parse(jsonStr);
 
       if (typeof data !== 'object' || data === null) {
         throw new Error("AI로부터 유효한 분석 결과를 받지 못했습니다. 다시 시도해주세요.");
@@ -379,19 +427,18 @@ const ShortcomingsPage = ({
           throw new Error("AI가 강점을 분석하지 못했어요. 조금 다른 단어로 다시 시도해볼까요?");
       }
       
-      setAffirmations(validResults.map(r => r.affirmation || "긍정적인 마음을 가지세요."));
+      setAffirmations(validResults.map(r => ({
+          affirmation: r.affirmation || "긍정적인 마음을 가지세요.",
+          keyword: r.keyword || "강점"
+      })));
       setExplanations(validResults.map(r => r.explanation || "모든 경험은 성장의 기회입니다."));
       setGrowthTips(validResults.flatMap(r => r.growth_tips || []));
       setStrengthSummary(summary);
       onNext();
 
-    } catch (e) {
+    } catch (e: any) {
       console.error("긍정 확언 생성 중 오류:", e);
-      if (e.message && e.message.includes("서버 설정 오류")) {
-          setError("GEMINI_API_KEY가 서버에 설정되지 않은 것 같습니다. 앱 관리자에게 문의하여 서버 환경 변수를 확인해주세요.");
-      } else {
-          setError(`에너지 생성 중 오류가 발생했습니다: ${e.message}`);
-      }
+      setError(`에너지 생성 중 오류가 발생했습니다: ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -504,38 +551,113 @@ const ExplanationPage = ({
   );
 };
 
-const FriendMessagePage = ({ name, friendName, setFriendName, friendMessage, setFriendMessage, onNext, error, onBack }) => (
-    <div className="page">
-        <h2>💌 친구의 응원 메시지</h2>
-        <p>{name}님을 응원하는 친구의 메시지를 담아 카드를 완성해보세요!</p>
-        <div className="input-group">
-            <label htmlFor="friendName">친구 이름</label>
-            <input
-                type="text"
-                id="friendName"
-                placeholder="예: 나긍정"
-                value={friendName}
-                onChange={(e) => setFriendName(e.target.value)}
-            />
+const ModifierSelectionPage = ({ name, affirmations, selectedKeywords, setSelectedKeywords, setEnergyName, onNext, error, setError, onBack }) => {
+    const [generating, setGenerating] = useState(false);
+
+    // 중학생들이 이해하기 쉬운 기본 수식어 리스트
+    const baseKeywords = [
+        "밝은", "따뜻한", "단단한", "빛나는", "솔직한", "용기있는", "섬세한", "열정적인", 
+        "차분한", "창의적인", "믿음직한", "다정한", "당당한", "지혜로운", "활기찬",
+        "성실한", "책임감있는", "논리적인", "신중한", "공감하는", "주도적인"
+    ];
+
+    // AI가 추출한 키워드와 기본 키워드 합치기 (중복 제거)
+    const allKeywords = Array.from(new Set([...affirmations.map(a => a.keyword), ...baseKeywords]));
+
+    const toggleKeyword = (keyword) => {
+        setError("");
+        if (selectedKeywords.includes(keyword)) {
+            setSelectedKeywords(selectedKeywords.filter(k => k !== keyword));
+        } else {
+            setSelectedKeywords([...selectedKeywords, keyword]);
+        }
+    };
+
+    const handleNext = async () => {
+        if (selectedKeywords.length < 3) {
+            setError("3개 이상의 수식어를 선택해주세요.");
+            return;
+        }
+
+        setGenerating(true);
+        try {
+            const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+            if (!apiKey) throw new Error("API 키가 없습니다.");
+
+            const ai = new GoogleGenAI({ apiKey });
+            
+            const prompt = `사용자가 선택한 세 가지 이상의 강점 키워드(${selectedKeywords.join(", ")})를 조합하여, 중학생이 직관적으로 이해할 수 있는 **'긍정 에너지 별명'**을 만들어줘.
+
+[명칭 생성 규칙]
+1. 쉬운 단어 사용: '인사이트', '컨트롤러' 같은 어려운 외래어 대신 '눈', '엔진', '대장', '사전', '비타민' 처럼 일상적인 단어를 사용해줘.
+2. 캐릭터화: 아이들이 게임 캐릭터나 SNS 닉네임처럼 느낄 수 있게 친근하게 표현해줘.
+3. 한 줄 정의 구조: [특징] + [명사] 형태의 짧고 강렬한 이름을 지어줘. (예: "세상을 밝히는 아이디어 엔진")
+4. 긍정적 뉘앙스: 강점이 잘 드러나면서도 자존감을 높여주는 멋진 이름을 부여해줘.
+
+[비유 가이드라인]
+- 논리/신중함 → '척척박사', '길잡이', '내비게이션', '안테나', '돋보기'
+- 밝음/다정함 → '비타민', '햇살', '충전기', '난로', '솜사탕'
+- 용기/활동적 → '탱크', '하이패스', '로켓', '엔진', '부스터', '불꽃'
+- 창의/독특함 → '아이디어 공장', '물음표 요정', '무지개 발전소'
+- 신뢰/든든함 → '가드', '울타리', '뿌리', '안전핀'
+
+초등학교 고학년에서 중학교 1학년 동생에게 설명해준다는 느낌으로 아주 쉽게 만들어줘!
+결과는 오직 생성된 별명 한 줄만 출력해.`;
+
+            const response = await ai.models.generateContent({
+                model: "gemini-3-flash-preview",
+                contents: prompt,
+            });
+
+            const generatedName = response.text.trim().replace(/"/g, "");
+            setEnergyName(generatedName);
+            onNext();
+        } catch (e) {
+            console.error("페르소나 생성 오류:", e);
+            // 실패 시 기본 로직으로 대체
+            const fallback = `${selectedKeywords.slice(0, 2).join(" ")} 에너지`;
+            setEnergyName(fallback);
+            onNext();
+        } finally {
+            setGenerating(false);
+        }
+    };
+
+    return (
+        <div className="page">
+            <h2>✨ 나만의 에너지 별명 만들기</h2>
+            <p>나를 잘 설명하는 수식어를 3개 이상 선택해주세요! (중복 선택 가능)</p>
+            
+            {generating ? (
+                <div className="loading-indicator">
+                    <div className="spinner"></div>
+                    <p className="loading-message">멋진 별명을 만들고 있어요...</p>
+                </div>
+            ) : (
+                <>
+                    <div className="keyword-container">
+                        {allKeywords.map((keyword, index) => (
+                            <button
+                                key={index}
+                                className={`keyword-btn ${selectedKeywords.includes(keyword) ? 'selected' : ''}`}
+                                onClick={() => toggleKeyword(keyword)}
+                            >
+                                {keyword}
+                            </button>
+                        ))}
+                    </div>
+                    {error && <p className="error-message">{error}</p>}
+                    <div className="button-group">
+                        <button className="btn btn-secondary" onClick={onBack}>이전</button>
+                        <button className="btn" onClick={handleNext} disabled={selectedKeywords.length < 3}>
+                            카드 완성하기
+                        </button>
+                    </div>
+                </>
+            )}
         </div>
-        <div className="input-group">
-            <label htmlFor="friendMessage">응원 메시지</label>
-            <textarea
-                id="friendMessage"
-                placeholder="예: 길동아, 너의 새로운 강점을 응원해!"
-                value={friendMessage}
-                onChange={(e) => setFriendMessage(e.target.value)}
-            />
-        </div>
-        {error && <p className="error-message">{error}</p>}
-        <div className="button-group">
-            <button className="btn btn-secondary" onClick={onBack}>이전</button>
-            <button className="btn" onClick={onNext} disabled={!friendName.trim() || !friendMessage.trim()}>
-                카드 완성하기
-            </button>
-        </div>
-    </div>
-);
+    );
+};
 
 const FinalCardPage = ({
   studentId,
@@ -543,8 +665,7 @@ const FinalCardPage = ({
   template,
   affirmations,
   strengthSummary,
-  friendName,
-  friendMessage,
+  energyName,
   growthTips,
   onRestart,
   onBack,
@@ -624,9 +745,10 @@ const FinalCardPage = ({
                     </div>
 
                     <div className="highlight-box">
-                        <h4>💌 친구가 보내는 응원</h4>
-                        <p className="card-quote">"{friendMessage}"</p>
-                        <p className="friend-name">- {friendName} 드림 💝 -</p>
+                        <h4>🔥 나만의 에너지 별명</h4>
+                        <div className="energy-name-box">
+                            <p className="energy-name-text">{energyName}</p>
+                        </div>
                     </div>
                 </div>
             </div>
