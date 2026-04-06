@@ -202,6 +202,9 @@ const UserInfoPage = ({ studentId, setStudentId, name, setName, onNext, error })
         <button className="btn" onClick={onNext} disabled={!studentId.trim() || !name.trim()}>
             다음
         </button>
+        <div className="footer">
+            개발자 인스타그램 : <a href="https://www.instagram.com/jae2_ethics" target="_blank" rel="noopener noreferrer">재이쌤 @jae2_ethics</a>
+        </div>
     </div>
 );
 
